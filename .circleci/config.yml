@@ -1,0 +1,57 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.14
+    working_directory: ~/src/jsonrpc-go
+    steps:
+      - restore_cache:
+          keys:
+            - v1-pkg-cache
+      - checkout
+      - run: make setup
+      - run: make install
+      - save_cache:
+          key: v1-pkg-cache
+          paths:
+            - "/go/pkg"
+
+  lint:
+    docker:
+      - image: circleci/golang:1.14
+    working_directory: ~/src/jsonrpc-go
+    steps:
+      - checkout
+      - run: make setup
+      - run: make lint
+
+  test:
+    docker:
+      - image: circleci/golang:1.14
+    working_directory: ~/src/jsonrpc-go
+    environment:
+      TEST_RESULTS: /tmp/test-results
+
+    steps:
+      - checkout
+      - run: mkdir -p $TEST_RESULTS
+      - run: make setup
+      - run: go get github.com/jstemmer/go-junit-report
+      - run:
+          name: Run unit tests
+          command: |
+            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
+            go test -v ./... | tee ${TEST_RESULTS}/go-test.out
+      - store_artifacts:
+          path: /tmp/test-results
+          destination: raw-test-output
+      - store_test_results:
+          path: /tmp/test-results
+
+workflows:
+  version: 2
+  all:
+    jobs:
+      - build
+      - lint
+      - test
