@@ -6,6 +6,31 @@ import (
 	"strings"
 )
 
+type ErrorOption func(*RPCError)
+
+func Wrap(wrapped error) ErrorOption {
+	return func(err *RPCError) { err.wrapped = wrapped }
+}
+
+func Data(data interface{}) ErrorOption {
+	return func(err *RPCError) { err.data = data }
+}
+
+func Error2(name, message string, args ...interface{}) *RPCError {
+	result := &RPCError{Name: name, Message: message}
+	for i := len(args) - 1; i >= 0; i-- {
+		if opt, ok := args[i].(ErrorOption); ok {
+			opt(result)
+			args = args[0:i]
+		}
+	}
+
+	if len(args) > 0 {
+		result.Message = fmt.Sprintf(message, args...)
+	}
+	return result
+}
+
 // Error creates an error that will be rendered directly to the client.
 func Error(name, message string, args ...interface{}) *RPCError {
 	if len(args) > 0 {
