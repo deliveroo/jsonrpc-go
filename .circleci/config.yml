@@ -48,6 +48,24 @@ jobs:
       - store_test_results:
           path: /tmp/test-results
 
+  release:
+    docker:
+      - image: circleci/node:12.16.1
+    steps:
+      - checkout
+      - add_ssh_keys
+      - run: npm install conventional-changelog-conventionalcommits@4
+      - run: npm install @semantic-release/changelog@5
+      - run: npx semantic-release@17
+
+  lint/commit:
+    docker:
+      - image: circleci/node:12.16.1
+    steps:
+      - checkout
+      - run: npm install @commitlint/config-conventional@8.3.4
+      - run: npx commitlint@8.3.5 --from $(git rev-parse origin/master) --to $CIRCLE_SHA1 --verbose
+
 workflows:
   version: 2
   all:
@@ -55,3 +73,17 @@ workflows:
       - build
       - lint
       - test
+      - lint/commit:
+          filters:
+            branches:
+              ignore:
+                - master
+      - release:
+          requires:
+            - build
+            - lint
+            - test
+          filters:
+            branches:
+              only:
+                - master
