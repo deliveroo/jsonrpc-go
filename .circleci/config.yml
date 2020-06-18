@@ -50,37 +50,32 @@ jobs:
 
   release:
     docker:
-      - image: circleci/node:12.16.1
+      - image: deliveroo/semantic-release:1.3.0
     steps:
       - checkout
-      - add_ssh_keys
-      - run: npm install conventional-changelog-conventionalcommits@4
-      - run: npm install @semantic-release/changelog@5
-      - run: npx semantic-release@17
+      - run: semantic-release -r ${CIRCLE_REPOSITORY_URL}
 
-  lint/commit:
+  commitlint:
     docker:
-      - image: circleci/node:12.16.1
+      - image: deliveroo/semantic-release:1.3.0
+    environment:
+      - DEFAULT_BRANCH=origin/master
     steps:
       - checkout
-      - run: npm install @commitlint/config-conventional@8.3.4
-      - run: npx commitlint@8.3.5 --from $(git rev-parse origin/master) --to $CIRCLE_SHA1 --verbose
+      - run: commitlint --from $(git rev-parse $DEFAULT_BRANCH) --to $CIRCLE_SHA1 --verbose
 
 workflows:
   version: 2
   all:
     jobs:
       - build
+      - commitlint
       - lint
       - test
-      - lint/commit:
-          filters:
-            branches:
-              ignore:
-                - master
       - release:
           requires:
             - build
+            - commitlint
             - lint
             - test
           filters:
